@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CLI 授权 - 临时邮箱</title>
+    <style>.precheck-hide body{ visibility: hidden; }</style>
+    <script src="/js/auth-guard.js"></script>
+    <script>
+      (function() {
+        try {
+          document.documentElement.classList.add('precheck-hide');
+        } catch (_) {}
+      })();
+    </script>
+    <script src="/js/mock.js"></script>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Open+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/login.css" />
+    <link rel="stylesheet" href="/css/login_black.css" />
+    <script src="/js/theme-toggle.js"></script>
+  </head>
+  <body>
+    <div class="bg"></div>
+    <div class="center">
+      <button id="theme-toggle" class="theme-toggle-login" aria-label="切换主题" title="切换主题">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <use href="/icons/sprites.svg#icon-moon"></use>
+        </svg>
+      </button>
+      <div class="card">
+        <div class="logo">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 6h16v12H4z" />
+            <path d="m4 7 8 6 8-6" />
+          </svg>
+        </div>
+        <h1>CLI 授权</h1>
+        <div id="status" class="err">正在检查登录状态…</div>
+        <div style="font-size: 13px; color: #64748b; line-height: 1.7; margin-bottom: 20px;">
+          登录后将生成一次性授权码。将它粘贴回终端即可完成 CLI 登录。
+        </div>
+        <div id="code-panel" style="display:none; margin-bottom: 20px;">
+          <div id="code" class="input selectable" style="font-size: 28px; font-weight: 800; letter-spacing: 4px; text-align: center; margin-bottom: 12px;"></div>
+          <button id="copy" class="btn">复制授权码</button>
+        </div>
+        <div id="hint" style="font-size: 12px; color: #64748b;">
+          授权码仅可使用一次，并会在 10 分钟后过期。
+        </div>
+      </div>
+    </div>
+    <script src="/js/cli-auth.js"></script>
+    <script>
+      (function() {
+        try {
+          var btn = document.getElementById('theme-toggle');
+          if (!btn) return;
+          if (window.freemailTheme) {
+            var t = window.freemailTheme.getTheme();
+            var icon = btn.querySelector('svg use');
+            if (icon) icon.setAttribute('href', '/icons/sprites.svg#icon-' + (t === 'dark' ? 'sun' : 'moon'));
+            btn.title = t === 'dark' ? '切换到明亮模式' : '切换到暗黑模式';
+          }
+          btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (window.freemailTheme) window.freemailTheme.toggle();
+          });
+        } catch (_) {}
+      })();
+    </script>
+  </body>
+</html>

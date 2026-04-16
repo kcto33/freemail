@@ -15,6 +15,9 @@ export class AssetManager {
       '/index.html',
       '/login',
       '/login.html',
+      '/cli-auth',
+      '/html/cli-auth.html',
+      '/js/cli-auth.js',
       '/admin.html',
       '/html/mailboxes.html',
       '/mailboxes.html',
@@ -188,6 +191,10 @@ export class AssetManager {
 
     if (url.pathname === '/login') {
       targetUrl = new URL('/login.html', url).toString();
+    }
+
+    if (url.pathname === '/cli-auth') {
+      targetUrl = new URL('/html/cli-auth.html', url).toString();
     }
 
     if (url.pathname === '/admin') {
