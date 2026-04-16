@@ -7,6 +7,7 @@ import { handleUsersApi } from './users.js';
 import { handleMailboxesApi } from './mailboxes.js';
 import { handleEmailsApi } from './emails.js';
 import { handleSendApi } from './send.js';
+import { handleCliAuthApi } from './cliAuth.js';
 import { getJwtPayload, errorResponse } from './helpers.js';
 
 /**
@@ -77,6 +78,10 @@ export async function handleApiRequest(request, db, mailDomains, options = {
 
   // 依次尝试各个 API 处理器
   let response;
+
+  // CLI auth API
+  response = await handleCliAuthApi(request, db, url, path, options);
+  if (response) return response;
 
   // 用户管理 API
   response = await handleUsersApi(request, db, url, path, options);

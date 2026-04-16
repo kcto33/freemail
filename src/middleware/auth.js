@@ -3,6 +3,8 @@
  * @module middleware/auth
  */
 
+import { resolveCliBearerPayload, extractCliBearerToken } from '../api/cliAuth.js';
+
 export const COOKIE_NAME = 'iding-session';
 
 // 默认会话过期时间（天）
@@ -278,11 +280,11 @@ export async function resolveAuthPayload(request, JWT_TOKEN) {
  * @param {object} context - 请求上下文
  * @returns {Promise<Response|null>} 认证失败返回401响应
  */
-export async function authMiddleware(context) {
+export async function authMiddleware(context, deps = {}) {
   const { request, env } = context;
   const url = new URL(request.url);
 
-  const publicPaths = ['/api/login', '/api/logout'];
+  const publicPaths = ['/api/login', '/api/logout', '/api/cli/auth/start', '/api/cli/auth/exchange'];
   if (publicPaths.includes(url.pathname)) {
     return null;
   }
@@ -291,6 +293,16 @@ export async function authMiddleware(context) {
   const root = checkRootAdminOverride(request, JWT_TOKEN);
   if (root) {
     context.authPayload = root;
+    return null;
+  }
+
+  const bearerToken = extractCliBearerToken(request);
+  if (bearerToken) {
+    const cliPayload = await resolveCliBearerPayload(request, env, deps);
+    if (!cliPayload) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+    context.authPayload = cliPayload;
     return null;
   }
 
