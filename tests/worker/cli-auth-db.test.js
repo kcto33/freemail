@@ -93,6 +93,13 @@ function createMockDb() {
               row.code_expires_at = bindings[3];
             }
           }
+          if (/UPDATE cli_auth_codes SET consumed_at = \?, token_hash = \?/i.test(sql)) {
+            const row = rows.cli_auth_codes.find((entry) => entry.code_hash === bindings[2]);
+            if (row) {
+              row.consumed_at = bindings[0];
+              row.token_hash = bindings[1];
+            }
+          }
           if (/INSERT INTO cli_auth_codes/i.test(sql)) {
             rows.cli_auth_codes.push({
               code_hash: bindings[0],
@@ -134,6 +141,13 @@ function createMockDb() {
   };
 }
 
+function setRowExpiresAt(rows, table, hashField, hashValue, expiresAt) {
+  const row = rows[table].find((entry) => entry[hashField] === hashValue);
+  if (row) {
+    row.expires_at = expiresAt;
+  }
+}
+
 test('creates, exchanges, looks up, and revokes CLI auth records', async () => {
   const db = createMockDb();
 
@@ -161,6 +175,40 @@ test('creates, exchanges, looks up, and revokes CLI auth records', async () => {
   await revokeCliTokenByValue(db, token.rawToken);
   const revoked = await findCliTokenByValue(db, token.rawToken);
   assert.equal(revoked, null);
+});
+
+test('rejects expired state, expired code, code replay, and expired token', async () => {
+  const db = createMockDb();
+  const expired = '2000-01-01T00:00:00.000Z';
+
+  const state = await createCliAuthState(db, { userId: 7, expiresInSeconds: 600 });
+  setRowExpiresAt(db.rows, 'cli_auth_states', 'state_hash', await sha256Hex(state.state), expired);
+  await assert.rejects(
+    () => attachCliAuthCodeToState(db, state.state, { userId: 7, code: 'cli-code-expired' }),
+    /expired|过期/i
+  );
+
+  const freshState = await createCliAuthState(db, { userId: 7, expiresInSeconds: 600 });
+  const attached = await attachCliAuthCodeToState(db, freshState.state, { userId: 7, code: 'cli-code-2', expiresInSeconds: 600 });
+  setRowExpiresAt(db.rows, 'cli_auth_codes', 'code_hash', await sha256Hex(attached.code), expired);
+  await assert.rejects(
+    () => exchangeCliCodeForToken(db, attached.rawCode, { userId: 7, tokenValue: 'cli-token-expired' }),
+    /expired|过期/i
+  );
+
+  const replayState = await createCliAuthState(db, { userId: 7, expiresInSeconds: 600 });
+  const replayAttached = await attachCliAuthCodeToState(db, replayState.state, { userId: 7, code: 'cli-code-replay', expiresInSeconds: 600 });
+  await exchangeCliCodeForToken(db, replayAttached.rawCode, { userId: 7, tokenValue: 'cli-token-replay' });
+  await assert.rejects(
+    () => exchangeCliCodeForToken(db, replayAttached.rawCode, { userId: 7, tokenValue: 'cli-token-replay-2' }),
+    /used|consumed|replay|已使用|过期/i
+  );
+
+  const tokenState = await createCliAuthState(db, { userId: 7, expiresInSeconds: 600 });
+  const tokenAttached = await attachCliAuthCodeToState(db, tokenState.state, { userId: 7, code: 'cli-code-token', expiresInSeconds: 600 });
+  const token = await exchangeCliCodeForToken(db, tokenAttached.rawCode, { userId: 7, tokenValue: 'cli-token-expiry', expiresInSeconds: 3600 });
+  setRowExpiresAt(db.rows, 'cli_tokens', 'token_hash', await sha256Hex(token.token), expired);
+  assert.equal(await findCliTokenByValue(db, token.rawToken), null);
 });
 
 test('adds CLI auth tables during database initialization and setup', async () => {

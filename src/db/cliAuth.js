@@ -14,6 +14,13 @@ function addSecondsIso(seconds) {
   return new Date(Date.now() + Math.max(0, value) * 1000).toISOString();
 }
 
+function isExpired(expiresAt) {
+  if (!expiresAt) return true;
+  const ts = Date.parse(expiresAt);
+  if (Number.isNaN(ts)) return true;
+  return ts <= Date.now();
+}
+
 function randomTokenValue(prefix = 'cli') {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
@@ -137,6 +144,9 @@ export async function attachCliAuthCodeToState(db, stateValue, { userId, expires
   if (Number(stateRow.user_id) !== Number(userId)) {
     throw new Error('CLI state 不匹配');
   }
+  if (isExpired(stateRow.expires_at)) {
+    throw new Error('CLI state 已过期');
+  }
 
   const rawCode = String(code || randomTokenValue('code'));
   const codeHash = await sha256Hex(rawCode);
@@ -178,7 +188,7 @@ export async function exchangeCliCodeForToken(db, codeValue, { userId, expiresIn
   const codeHash = await sha256Hex(codeValue);
   const codeRow = await fetchOne(
     db,
-    'SELECT id, state_hash, user_id, expires_at FROM cli_auth_codes WHERE code_hash = ? LIMIT 1',
+    'SELECT id, state_hash, user_id, expires_at, consumed_at FROM cli_auth_codes WHERE code_hash = ? LIMIT 1',
     [codeHash]
   );
 
@@ -187,6 +197,12 @@ export async function exchangeCliCodeForToken(db, codeValue, { userId, expiresIn
   }
   if (Number(codeRow.user_id) !== Number(userId)) {
     throw new Error('CLI code 不匹配');
+  }
+  if (isExpired(codeRow.expires_at)) {
+    throw new Error('CLI code 已过期');
+  }
+  if (codeRow.consumed_at) {
+    throw new Error('CLI code 已使用');
   }
 
   const rawToken = String(tokenValue || randomTokenValue('token'));
@@ -232,7 +248,7 @@ export async function findCliTokenByValue(db, tokenValue) {
     [tokenHash]
   );
 
-  if (!tokenRow || tokenRow.revoked_at) {
+  if (!tokenRow || tokenRow.revoked_at || isExpired(tokenRow.expires_at)) {
     return null;
   }
 
