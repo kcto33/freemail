@@ -106,3 +106,4 @@ test-eml.html
 wrangler-github.toml
 .gitignore
 wrangler-dev.toml
+.worktrees/
