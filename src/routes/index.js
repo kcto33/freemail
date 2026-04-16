@@ -235,9 +235,10 @@ async function delegateApiRequest(context) {
 
   const RESEND_API_KEY = env.RESEND_API_KEY || env.RESEND_TOKEN || env.RESEND || '';
   const ADMIN_NAME = String(env.ADMIN_NAME || 'admin').trim().toLowerCase();
+  const authRole = authPayload?.role || 'admin';
 
   // 访客只允许读取模拟数据
-  if ((authPayload.role || 'admin') === 'guest') {
+  if (authRole === 'guest') {
     return handleApiRequest(request, DB, MAIL_DOMAINS, {
       mockOnly: true,
       resendApiKey: RESEND_API_KEY,
@@ -248,7 +249,7 @@ async function delegateApiRequest(context) {
   }
 
   // 邮箱用户只能访问自己的邮箱数据
-  if (authPayload.role === 'mailbox') {
+  if (authRole === 'mailbox') {
     return handleApiRequest(request, DB, MAIL_DOMAINS, {
       mockOnly: false,
       resendApiKey: RESEND_API_KEY,

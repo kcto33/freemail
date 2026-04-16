@@ -11,11 +11,36 @@ import {
   revokeCliTokenByValue
 } from '../db/cliAuth.js';
 import { errorResponse, jsonResponse, sha256Hex } from './helpers.js';
-import { generateRandomId } from '../utils/common.js';
 
 const START_STATE_TTL_SECONDS = 10 * 60;
 const ISSUE_CODE_TTL_SECONDS = 10 * 60;
 const ACCESS_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
+const RANDOM_ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-';
+
+function getRandomBytes(size) {
+  const bytes = new Uint8Array(size);
+  crypto.getRandomValues(bytes);
+  return bytes;
+}
+
+function createSecureRandomId(length = 16) {
+  const chars = RANDOM_ALPHABET;
+  const bytes = getRandomBytes(length);
+  let out = '';
+  for (let i = 0; i < bytes.length; i++) {
+    out += chars[bytes[i] % chars.length];
+  }
+  return out;
+}
+
+function createSecureAccessToken() {
+  const bytes = getRandomBytes(32);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
 
 function addSecondsIso(seconds) {
   return new Date(Date.now() + Math.max(0, Number(seconds) || 0) * 1000).toISOString();
@@ -102,11 +127,12 @@ async function resolveCliSessionPayload(db, storedUserId) {
 }
 
 export function createCliAuthHandlers(deps = {}) {
-  const randomId = deps.randomId ?? ((length = 16) => generateRandomId(length));
+  const randomId = deps.randomId ?? createSecureRandomId;
   const createState = deps.createCliAuthState ?? createCliAuthState;
   const attachCode = deps.attachCliAuthCodeToState ?? attachCliAuthCodeToState;
   const exchangeCode = deps.exchangeCliCodeForToken ?? exchangeCliCodeForToken;
   const revokeToken = deps.revokeCliTokenByValue ?? revokeCliTokenByValue;
+  const createAccessToken = deps.createAccessToken ?? createSecureAccessToken;
 
   async function handleCliAuthApi(request, db, url, path, options = {}) {
     if (path === '/api/cli/auth/start' && request.method === 'POST') {
@@ -183,7 +209,7 @@ export function createCliAuthHandlers(deps = {}) {
         storedUserId = Number(codeRow.user_id || 0);
       }
 
-      const accessToken = `${randomId(24)}${randomId(24)}`.replace(/\s+/g, '');
+      const accessToken = createAccessToken();
       const result = await exchangeCode(db, code, {
         userId: storedUserId,
         expiresInSeconds: ACCESS_TOKEN_TTL_SECONDS,

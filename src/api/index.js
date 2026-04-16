@@ -29,6 +29,11 @@ export async function handleApiRequest(request, db, mailDomains, options = {
   const url = new URL(request.url);
   const path = url.pathname;
   const isMock = !!options.mockOnly;
+
+  // CLI auth API
+  let response = await handleCliAuthApi(request, db, url, path, options);
+  if (response) return response;
+
   const isMailboxOnly = !!options.mailboxOnly;
 
   // 邮箱用户只能访问特定的API端点和自己的数据
@@ -77,12 +82,6 @@ export async function handleApiRequest(request, db, mailDomains, options = {
   }
 
   // 依次尝试各个 API 处理器
-  let response;
-
-  // CLI auth API
-  response = await handleCliAuthApi(request, db, url, path, options);
-  if (response) return response;
-
   // 用户管理 API
   response = await handleUsersApi(request, db, url, path, options);
   if (response) return response;

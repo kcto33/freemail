@@ -290,19 +290,18 @@ export async function authMiddleware(context, deps = {}) {
   }
 
   const JWT_TOKEN = env.JWT_TOKEN || env.JWT_SECRET || '';
-  const root = checkRootAdminOverride(request, JWT_TOKEN);
-  if (root) {
-    context.authPayload = root;
-    return null;
-  }
-
   const bearerToken = extractCliBearerToken(request);
   if (bearerToken) {
     const cliPayload = await resolveCliBearerPayload(request, env, deps);
-    if (!cliPayload) {
-      return new Response('Unauthorized', { status: 401 });
+    if (cliPayload) {
+      context.authPayload = cliPayload;
+      return null;
     }
-    context.authPayload = cliPayload;
+  }
+
+  const root = checkRootAdminOverride(request, JWT_TOKEN);
+  if (root) {
+    context.authPayload = root;
     return null;
   }
 
