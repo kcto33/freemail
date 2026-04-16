@@ -4,6 +4,14 @@
  */
 
 export { initDatabase, setupDatabase } from './init.js';
+export {
+  createCliAuthTables,
+  createCliAuthState,
+  attachCliAuthCodeToState,
+  exchangeCliCodeForToken,
+  findCliTokenByValue,
+  revokeCliTokenByValue,
+} from './cliAuth.js';
 export { getDatabaseWithValidation, getInitializedDatabase } from './connection.js';
 export {
   getOrCreateMailboxId,

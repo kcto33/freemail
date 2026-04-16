@@ -4,6 +4,7 @@
  */
 
 import { clearExpiredCache } from '../utils/cache.js';
+import { createCliAuthTables } from './cliAuth.js';
 
 // 初始化状态标志（全局共享，Worker 生命周期内有效）
 let _isFirstInit = true;
@@ -47,6 +48,7 @@ async function performFirstTimeSetup(db) {
     await db.prepare('SELECT 1 FROM sent_emails LIMIT 1').all();
     // 所有5个必要表都存在，执行字段迁移
     await migrateMailboxesFields(db);
+    await createCliAuthTables(db);
     return;
   } catch (e) {
     // 有表不存在，继续初始化
@@ -62,6 +64,7 @@ async function performFirstTimeSetup(db) {
   
   // 创建索引
   await createIndexes(db);
+  await createCliAuthTables(db);
 }
 
 /**
@@ -205,4 +208,5 @@ export async function setupDatabase(db) {
   
   // 创建所有索引
   await createIndexes(db);
+  await createCliAuthTables(db);
 }
