@@ -7,8 +7,17 @@
   "bin": {
     "freemail": "dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "dev": "tsx src/index.ts",
     "test": "tsx --test tests/auth.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.6.3"
   }
 }

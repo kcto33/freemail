@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import fs from 'node:fs/promises';
 
 import { loadConfig, saveConfig } from '../src/config.ts';
 import { exchangeAuthCode, getSessionStatus } from '../src/commands/auth.ts';
@@ -76,4 +76,30 @@ test('getSessionStatus validates the stored CLI token remotely', async () => {
 
   assert.equal(status.username, 'alice');
   assert.equal(status.role, 'user');
+});
+
+test('package metadata declares a buildable dist-based CLI entrypoint', async () => {
+  const [packageJsonRaw, tsconfigRaw] = await Promise.all([
+    fs.readFile(new URL('../package.json', import.meta.url), 'utf8'),
+    fs.readFile(new URL('../tsconfig.json', import.meta.url), 'utf8'),
+  ]);
+
+  const packageJson = JSON.parse(packageJsonRaw) as {
+    bin?: Record<string, string>;
+    scripts?: Record<string, string>;
+  };
+  const tsconfig = JSON.parse(tsconfigRaw) as {
+    compilerOptions?: {
+      noEmit?: boolean;
+      outDir?: string;
+      rootDir?: string;
+    };
+  };
+
+  assert.equal(packageJson.bin?.freemail, 'dist/index.js');
+  assert.equal(packageJson.scripts?.build, 'tsc -p tsconfig.json');
+  assert.equal(packageJson.scripts?.test, 'tsx --test tests/auth.test.ts');
+  assert.equal(tsconfig.compilerOptions?.noEmit, false);
+  assert.equal(tsconfig.compilerOptions?.outDir, 'dist');
+  assert.equal(tsconfig.compilerOptions?.rootDir, 'src');
 });

@@ -5,7 +5,10 @@
     "moduleResolution": "NodeNext",
     "strict": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "types": ["node"],
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": "src"
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"]
+  "include": ["src/**/*.ts"]
 }
