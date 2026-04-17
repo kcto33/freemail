@@ -91,6 +91,7 @@
       <div class="progress"><div class="progress-bar"></div></div>
     </div>
     <div id="footer-slot"></div>
+    <script src="/js/auth-session.js"></script>
     <script src="/js/auth-guard.js" data-autorun="loading"></script>
     <script>
       document.addEventListener('DOMContentLoaded', () => {
@@ -120,13 +121,13 @@
           link.href = '/js/app.js';
           document.head.appendChild(link);
         }catch(_){ }
-        // 已认证用户兜底重定向：检测 Cookie 则确保跳往目标（更短延时）
         try{
-          var hasToken = document.cookie.split(';').some(function(c){ return c.trim().indexOf('iding-session=') === 0; });
-          if (hasToken){
-            var target = (function(){ try{ var u=new URL(location.href); return u.searchParams.get('redirect')||'/'; }catch(_){ return '/'; }})();
-            // 减少延时时间
-            setTimeout(function(){ try{ location.replace(target); }catch(_){ location.replace('/'); } }, 100);
+          if (window.AuthSession && typeof window.AuthSession.fetchSession === 'function') {
+            window.AuthSession.fetchSession({ timeoutMs: 1500 }).then(function(session){
+              if (!session) return;
+              var target = (function(){ try{ var u=new URL(location.href); return u.searchParams.get('redirect')||'/'; }catch(_){ return '/'; }})();
+              setTimeout(function(){ try{ location.replace(target); }catch(_){ location.replace('/'); } }, 100);
+            }).catch(function(){});
           }
         }catch(_){ }
       });

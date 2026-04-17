@@ -48,29 +48,55 @@ async function doLogin(){
     const response = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ username: user, password })
     });
     
     if (response.ok) {
-      // 登录成功，直接跳转到目标页面，避免loading页面
       const result = await response.json();
       if (result.success) {
-        // 根据用户角色智能跳转
         let finalTarget = target;
         if (result.role === 'mailbox') {
-          // 邮箱用户跳转到专用页面
           finalTarget = '/html/mailbox.html';
         } else if (target === '/' && (result.role === 'admin' || result.role === 'guest')) {
-          // 管理员和访客跳转到主页
           finalTarget = '/';
         }
-        
-        // 显示成功提示
+
+        let sessionReady = null;
+        try {
+          if (window.AuthSession && typeof window.AuthSession.waitForSessionReady === 'function') {
+            sessionReady = await window.AuthSession.waitForSessionReady({ timeoutMs: 4000, intervalMs: 150 });
+          } else {
+            const sessionResponse = await fetch('/api/session', {
+              method: 'GET',
+              headers: { 'Cache-Control': 'no-cache' },
+              credentials: 'include'
+            });
+            sessionReady = sessionResponse.ok ? await sessionResponse.json() : null;
+          }
+        } catch (_) {
+          sessionReady = null;
+        }
+
+        if (!sessionReady) {
+          await showToast('登录成功，但会话尚未建立，正在重试…', 'info');
+          if (window.AuthGuard && window.AuthGuard.goLoading){
+            window.AuthGuard.goLoading(finalTarget, '正在建立登录会话…', { force: true });
+          }else{
+            location.replace('/templates/loading.html?redirect=' + encodeURIComponent(finalTarget) + '&status=' + encodeURIComponent('正在建立登录会话…') + '&force=1');
+          }
+          return;
+        }
+
+        try {
+          sessionStorage.setItem('auth_checked', 'true');
+          sessionStorage.setItem('auth_checked_ts', String(Date.now()));
+        } catch (_) {}
+
         await showToast('登录成功，正在跳转...', 'success');
-        // 延时确保toast显示和cookie设置生效
         setTimeout(() => {
           location.replace(finalTarget);
-        }, 1200);
+        }, 200);
         return;
       }
     } else {

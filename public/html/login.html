@@ -5,61 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>登录 - 临时邮箱</title>
     <style>.precheck-hide body{ visibility: hidden; }</style>
+    <script src="/js/auth-session.js"></script>
     <script>
-      // 立即检查登录状态（在任何其他脚本之前）
       (function(){
         try{
-          var hasToken = document.cookie.split(';').some(function(c){ 
-            return c.trim().indexOf('iding-session=') === 0; 
-          });
-          
-          // 如果有cookie但是从其他页面跳转过来的，先验证有效性再跳转
-          // 避免无效cookie导致的循环跳转和页面闪现
-          if (hasToken && document.referrer) {
-            // 异步验证，不阻止页面渲染
-            (async function(){
-              try{
-                const controller = new AbortController();
-                const tid = setTimeout(function(){ try{ controller.abort(); }catch(_){ } }, 1500);
-                const r = await fetch('/api/session', { 
-                  method: 'GET', 
-                  headers: { 'Cache-Control': 'no-cache' },
-                  credentials: 'include',
-                  signal: controller.signal
-                });
-                clearTimeout(tid);
-                if (r && r.ok){
-                  location.replace('/');
-                } else {
-                  // cookie无效，清除它
-                  document.cookie = 'iding-session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-                }
-              }catch(_){ 
-                // 验证失败，保持在登录页面
-              }
-            })();
-            return;
-          } else if (hasToken && !document.referrer) {
-            // 直接访问登录页且有cookie，立即重定向
-            location.replace('/');
-            return;
-          }
-          
-          // 没有cookie，做一次网络检查（可能cookie刚设置还没生效）
-          fetch('/api/session', { 
-            method: 'GET', 
-            headers: { 'Cache-Control': 'no-cache' },
-            credentials: 'include'
-          }).then(function(r){
-            if (r && r.ok){
-              location.replace('/');
-            }
-          }).catch(function(){ 
-            // 会话检查失败，保持在登录页面
-          });
-        }catch(_){ 
-          // 错误处理，保持在登录页面
-        }
+          if (!window.AuthSession || typeof window.AuthSession.fetchSession !== 'function') return;
+          window.AuthSession.fetchSession({ timeoutMs: 1500 }).then(function(session){
+            if (session) location.replace('/');
+          }).catch(function(){});
+        }catch(_){ }
       })();
     </script>
     <script src="/js/auth-guard.js"></script>
@@ -76,22 +30,17 @@
             return;
           }
         }catch(_){ }
-        // Cookie检查已在页面顶部执行，这里跳过重复检查
-        // 2) 网络兜底，延长超时时间减少误判
         try{
-          var controller = new AbortController();
-          var tid = setTimeout(function(){ try{ controller.abort(); }catch(_){ } }, 1500); // 从500ms延长到1500ms
-          fetch('/api/session', { 
-            headers: { 'Cache-Control': 'no-cache' }, 
-            signal: controller.signal,
-            credentials: 'include'
-          })
-            .then(function(r){
-              clearTimeout(tid);
-              if (r && r.ok){ location.replace('/'); return; }
-              document.documentElement.classList.remove('precheck-hide');
-            })
-            .catch(function(){ try{ document.documentElement.classList.remove('precheck-hide'); }catch(_){ } });
+          if (window.AuthSession && typeof window.AuthSession.fetchSession === 'function') {
+            window.AuthSession.fetchSession({ timeoutMs: 1500 })
+              .then(function(session){
+                if (session){ location.replace('/'); return; }
+                document.documentElement.classList.remove('precheck-hide');
+              })
+              .catch(function(){ try{ document.documentElement.classList.remove('precheck-hide'); }catch(_){ } });
+          } else {
+            document.documentElement.classList.remove('precheck-hide');
+          }
         }catch(_){ try{ document.documentElement.classList.remove('precheck-hide'); }catch(_){ } }
         // 最长 2s 兜底显示（从1s延长到2s）
         setTimeout(function(){ try{ document.documentElement.classList.remove('precheck-hide'); }catch(_){ } }, 2000);
