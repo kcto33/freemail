@@ -33,7 +33,7 @@ export default {
       DB = await getInitializedDatabase(env);
     } catch (error) {
       console.error('数据库连接失败:', error.message);
-      return new Response('数据库连接失败，请检查配置', { status: 500 });
+      return new Response(`数据库连接失败: ${error.message}`, { status: 500 });
     }
 
     // 解析邮件域名
