@@ -3,7 +3,7 @@
  * @module admin
  */
 
-import { api, getUsers, createUser, updateUser, deleteUser, getUserMailboxes, assignMailbox, unassignMailbox } from './modules/admin/api.js';
+import { api, getUsers, createUser, updateUser, deleteUser, getUserMailboxes, assignMailbox, unassignMailbox, getAnnouncement, saveAnnouncement } from './modules/admin/api.js';
 import { formatTime, renderUserRow, renderUserList, generateSkeletonRows, renderPagination } from './modules/admin/user-list.js';
 import { fillEditForm, collectEditFormData, validateEditForm, resetEditState } from './modules/admin/user-edit.js';
 
@@ -20,6 +20,10 @@ const els = {
   back: document.getElementById('back'),
   logout: document.getElementById('logout'),
   demoBanner: document.getElementById('demo-banner'),
+  announcementCard: document.getElementById('announcement-card'),
+  announcementContent: document.getElementById('announcement-content'),
+  announcementActive: document.getElementById('announcement-active'),
+  announcementSave: document.getElementById('announcement-save'),
   usersTbody: document.getElementById('users-tbody'),
   usersRefresh: document.getElementById('users-refresh'),
   usersLoading: document.getElementById('users-loading'),
@@ -115,6 +119,73 @@ function initConfirmEvents() {
   });
 }
 initConfirmEvents();
+
+function applyAnnouncementForm(data = {}) {
+  if (els.announcementContent) els.announcementContent.value = data.content || '';
+  if (els.announcementActive) els.announcementActive.checked = !!data.active;
+}
+
+function setAnnouncementControlsDisabled(disabled) {
+  if (els.announcementContent) els.announcementContent.disabled = disabled;
+  if (els.announcementActive) els.announcementActive.disabled = disabled;
+  if (els.announcementSave) els.announcementSave.disabled = disabled;
+}
+
+async function loadAnnouncement() {
+  if (!els.announcementCard) return;
+
+  els.announcementCard.style.display = 'none';
+  setAnnouncementControlsDisabled(true);
+
+  try {
+    const sessionResponse = await api('/api/session');
+    if (!sessionResponse.ok) throw new Error('加载会话失败');
+
+    const session = await sessionResponse.json();
+    const isStrictAdmin = session?.strictAdmin === true;
+
+    if (!isStrictAdmin || session?.role === 'guest' || session?.role === 'demo') {
+      return;
+    }
+
+    els.announcementCard.style.display = '';
+    try {
+      const data = await getAnnouncement();
+      applyAnnouncementForm(data);
+      setAnnouncementControlsDisabled(false);
+    } catch (error) {
+      console.error('加载公告数据失败:', error);
+      setAnnouncementControlsDisabled(true);
+      showToast('公告加载失败，当前已暂停编辑，请稍后重试。', 'error');
+    }
+  } catch (error) {
+    console.error('加载公告失败:', error);
+    els.announcementCard.style.display = 'none';
+  }
+}
+
+async function handleSaveAnnouncement() {
+  const content = els.announcementContent?.value || '';
+  const isActive = !!els.announcementActive?.checked;
+
+  if (!els.announcementSave) return;
+
+  els.announcementSave.disabled = true;
+
+  try {
+    const saved = await saveAnnouncement({
+      content,
+      is_active: isActive
+    });
+    applyAnnouncementForm(saved);
+    showToast('公告已保存', 'success');
+  } catch (error) {
+    console.error('保存公告失败:', error);
+    showToast(error?.message || '保存公告失败', 'error');
+  } finally {
+    els.announcementSave.disabled = false;
+  }
+}
 
 // 加载用户列表
 async function loadUsers() {
@@ -461,6 +532,7 @@ async function handleUnassignMailbox() {
 // 事件绑定
 els.back?.addEventListener('click', () => history.back());
 els.logout?.addEventListener('click', async () => { try { await api('/api/logout', { method: 'POST' }); } catch(_) {} location.replace('/html/login.html'); });
+els.announcementSave?.addEventListener('click', handleSaveAnnouncement);
 els.usersRefresh?.addEventListener('click', loadUsers);
 els.prevPage?.addEventListener('click', () => { if (currentPage > 1) { currentPage--; loadUsers(); }});
 els.nextPage?.addEventListener('click', () => { const totalPages = Math.ceil(totalUsers / pageSize); if (currentPage < totalPages) { currentPage++; loadUsers(); }});
@@ -506,4 +578,5 @@ els.mailboxesPrevPage?.addEventListener('click', () => { if (mailboxPage > 1) { 
 els.mailboxesNextPage?.addEventListener('click', () => { const totalPages = Math.ceil(totalMailboxes / mailboxPageSize); if (mailboxPage < totalPages) { mailboxPage++; loadUserMailboxes(); }});
 
 // 初始化
+loadAnnouncement();
 loadUsers();

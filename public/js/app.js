@@ -8,7 +8,7 @@ import { openForwardDialog, toggleFavorite, injectDialogStyles } from './mailbox
 import IconHelper from './modules/icons.js';
 
 // 导入模块
-import { formatTs, formatTsMobile, extractCode, escapeHtml, escapeAttr } from './modules/app/ui-helpers.js';
+import { formatTs, formatTsMobile, extractCode, escapeHtml, escapeAttr, formatPlainTextMultiline } from './modules/app/ui-helpers.js';
 import { mockApi, MOCK_STATE } from './modules/app/mock-api.js';
 import { showConfirm } from './modules/app/confirm-dialog.js';
 import { startAutoRefresh, stopAutoRefresh, initVisibilityTracking } from './modules/app/auto-refresh.js';
@@ -69,7 +69,10 @@ const els = {
   sidebarToggle: document.getElementById('sidebar-toggle'), sidebarToggleIcon: document.getElementById('sidebar-toggle-icon'),
   sidebar: document.querySelector('.sidebar'), container: document.querySelector('.container'),
   forwardSetting: document.getElementById('forward-setting'), toggleFavorite: document.getElementById('toggle-favorite'),
-  favoriteIcon: document.getElementById('favorite-icon'), favoriteText: document.getElementById('favorite-text')
+  favoriteIcon: document.getElementById('favorite-icon'), favoriteText: document.getElementById('favorite-text'),
+  announcementBanner: document.getElementById('announcement-banner'),
+  announcementBannerText: document.getElementById('announcement-banner-text'),
+  announcementBannerClose: document.getElementById('announcement-banner-close')
 };
 const lenRange = document.getElementById('len-range'), lenVal = document.getElementById('len-val'), domainSelect = document.getElementById('domain-select');
 
@@ -84,6 +87,58 @@ let countdown = REFRESH_INTERVAL;
 function showHeaderLoading(t) { if (els.listLoading) { els.listLoading.innerHTML = `<span class="spinner"></span>${t || '加载中…'}`; els.listLoading.style.display = 'flex'; }}
 function hideHeaderLoading() { if (els.listLoading) els.listLoading.style.display = 'none'; }
 function showCountdown() { if (els.listLoading) { els.listLoading.innerHTML = `<span class="countdown-icon">⏱</span>${countdown}s 后刷新`; els.listLoading.style.display = 'flex'; }}
+
+function getAnnouncementDismissKey(updatedAt) {
+  if (typeof updatedAt !== 'string' || !updatedAt.trim()) return '';
+  return `mf:announcement:dismissed:${updatedAt}`;
+}
+
+function hideAnnouncementBanner() {
+  if (els.announcementBannerText) els.announcementBannerText.innerHTML = '';
+  if (els.announcementBanner) {
+    els.announcementBanner.style.display = 'none';
+    els.announcementBanner.hidden = true;
+  }
+  if (els.announcementBannerClose) els.announcementBannerClose.onclick = null;
+}
+
+async function loadAnnouncementBanner(session) {
+  hideAnnouncementBanner();
+  if (!session || session.role === 'guest' || isGuest()) return;
+
+  try {
+    const response = await api('/api/announcement', { headers: { 'Cache-Control': 'no-cache' } });
+    if (!response.ok) return;
+
+    const announcement = await response.json();
+    const content = typeof announcement?.content === 'string' ? announcement.content.trim() : '';
+    const updatedAt = typeof announcement?.updated_at === 'string' ? announcement.updated_at : '';
+    if (!announcement?.active || !content) return;
+
+    const dismissKey = getAnnouncementDismissKey(updatedAt);
+    if (dismissKey) {
+      try {
+        if (sessionStorage.getItem(dismissKey) === '1') return;
+      } catch (_) {}
+    }
+
+    if (els.announcementBannerText) {
+      els.announcementBannerText.innerHTML = formatPlainTextMultiline(content);
+    }
+    if (els.announcementBanner) {
+      els.announcementBanner.hidden = false;
+      els.announcementBanner.style.display = '';
+    }
+    if (els.announcementBannerClose) {
+      els.announcementBannerClose.onclick = () => {
+        if (dismissKey) {
+          try { sessionStorage.setItem(dismissKey, '1'); } catch (_) {}
+        }
+        hideAnnouncementBanner();
+      };
+    }
+  } catch (_) {}
+}
 
 // 刷新邮件列表
 async function refresh() {
@@ -214,6 +269,7 @@ initCompose(els, api, showToast);
 (async () => {
   const s = await validateSession();
   if (!s) { clearCurrentMailbox(); stopAutoRefresh(); location.replace('/html/login.html'); return; }
+  void loadAnnouncementBanner(s);
   if (s.role === 'guest') { initGuestMode(); if (domainSelect) { domainSelect.innerHTML = '<option value="0">example.com</option>'; domainSelect.disabled = true; } populateDomains(['example.com'], domainSelect); }
   else await loadDomains(domainSelect, api);
   try { const qr = await api('/api/user/quota'); const q = await qr.json(); const el = document.getElementById('quota'); if (el && q) { el.textContent = isAdmin() ? `${q.total || 0} 邮箱` : `${q.used || 0} / ${q.limit || 0}`; }} catch(_) {}

@@ -284,6 +284,68 @@
   color: #475569;
 }
 
+.announcement-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.announcement-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.95), rgba(59, 130, 246, 0.8), rgba(16, 185, 129, 0.75));
+}
+
+.announcement-card__header {
+  margin-bottom: 16px;
+}
+
+.announcement-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.announcement-textarea {
+  min-height: 112px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.announcement-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(226, 232, 240, 0.7);
+}
+
+.announcement-card .toggle-label {
+  min-height: 40px;
+}
+
+.announcement-card .btn {
+  min-width: 120px;
+}
+
+.announcement-card .btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.announcement-card .help-text {
+  align-items: flex-start;
+  line-height: 1.5;
+}
+
+.announcement-card .form-label {
+  margin-bottom: 10px;
+}
+
 /* ===========================================
    表格设计
    =========================================== */
@@ -858,6 +920,15 @@
 
   .action-btn {
     padding: 12px;
+  }
+
+  .announcement-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .announcement-card .btn {
+    width: 100%;
   }
 
   .table-wrapper {

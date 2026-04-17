@@ -180,6 +180,47 @@
             </div>
           </div>
 
+          <div class="card announcement-card" id="announcement-card" style="display:none">
+            <div class="card-header announcement-card__header">
+              <h2>
+                <span class="card-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <use href="/icons/sprites.svg#icon-bell"/>
+                  </svg>
+                </span>
+                <span>站点公告</span>
+              </h2>
+            </div>
+            <div class="announcement-form">
+              <div class="form-group">
+                <label class="form-label" for="announcement-content">公告内容</label>
+                <textarea
+                  id="announcement-content"
+                  class="input announcement-textarea"
+                  rows="4"
+                  maxlength="500"
+                  placeholder="例如：今晚 23:00 到 23:30 短暂维护"
+                ></textarea>
+                <div class="help-text">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="16" x2="12" y2="12"/>
+                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                  </svg>
+                  仅对已登录用户显示，关闭状态仅在当前浏览器会话内生效。
+                </div>
+              </div>
+              <div class="announcement-toolbar">
+                <label class="toggle-label">
+                  <input id="announcement-active" type="checkbox" class="toggle-input" />
+                  <span class="toggle-switch"></span>
+                  <span class="toggle-text">启用公告</span>
+                </label>
+                <button id="announcement-save" class="btn btn-primary" type="button">保存公告</button>
+              </div>
+            </div>
+          </div>
+
           <!-- 用户列表 -->
           <div class="card">
             <div class="card-header">

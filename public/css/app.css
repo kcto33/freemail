@@ -434,6 +434,76 @@ body::after{
   box-shadow: var(--shadow-glass), inset 0 -1px 0 var(--border-glass);
 }
 
+.announcement-banner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 24px 0;
+  position: relative;
+  z-index: 40;
+}
+
+.announcement-banner-inner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: linear-gradient(135deg, rgba(255, 248, 235, 0.96) 0%, rgba(255, 241, 214, 0.92) 100%);
+  border: 1px solid rgba(217, 119, 6, 0.24);
+  border-top: none;
+  color: #7c2d12;
+  box-shadow: 0 14px 28px rgba(180, 83, 9, 0.12);
+  backdrop-filter: var(--blur-md);
+  -webkit-backdrop-filter: var(--blur-md);
+}
+
+.announcement-banner-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+  flex-shrink: 0;
+}
+
+.announcement-banner-text {
+  font-size: 14px;
+  line-height: 1.6;
+  font-weight: 600;
+  color: inherit;
+  word-break: break-word;
+}
+
+.announcement-banner-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.55);
+  color: #9a3412;
+  transition: var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.announcement-banner-close:hover {
+  background: rgba(255, 255, 255, 0.85);
+  color: #7c2d12;
+  transform: translateY(-1px);
+}
+
+.announcement-banner-close:focus-visible {
+  outline: 2px solid rgba(180, 83, 9, 0.45);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.18);
+}
+
 .topbar::before{
   content: '';
   position: absolute;
@@ -621,5 +691,26 @@ body::after{
   gap: 24px;
   align-items: start;
   min-height: calc(100vh - 100px);
+}
+
+@media (max-width: 768px) {
+  .announcement-banner {
+    padding: 10px 16px 0;
+  }
+
+  .announcement-banner-inner {
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .announcement-banner-icon {
+    display: none;
+  }
+
+  .announcement-banner-text {
+    font-size: 13px;
+    line-height: 1.55;
+  }
 }
 

@@ -28,6 +28,24 @@ export async function api(path, options = {}) {
   return r;
 }
 
+async function readErrorMessage(response, fallbackMessage) {
+  const body = await response.text();
+  if (!body) {
+    return fallbackMessage;
+  }
+
+  try {
+    const payload = JSON.parse(body);
+    if (payload?.error) {
+      return payload.error;
+    }
+  } catch (_) {
+    // Plain-text error responses should surface as-is.
+  }
+
+  return body;
+}
+
 /**
  * 获取用户列表
  * @param {object} params - 查询参数
@@ -119,6 +137,39 @@ export async function unassignMailbox(username, address) {
   });
 }
 
+/**
+ * 获取站点公告
+ * @returns {Promise<object>}
+ */
+export async function getAnnouncement() {
+  const r = await api('/api/announcement');
+
+  if (!r.ok) {
+    throw new Error(await readErrorMessage(r, '加载公告失败'));
+  }
+
+  return r.json();
+}
+
+/**
+ * 保存站点公告
+ * @param {object} data - 公告数据
+ * @returns {Promise<object>}
+ */
+export async function saveAnnouncement(data) {
+  const r = await api('/api/announcement', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+
+  if (!r.ok) {
+    throw new Error(await readErrorMessage(r, '保存公告失败'));
+  }
+
+  return r.json();
+}
+
 export default {
   api,
   getUsers,
@@ -127,5 +178,7 @@ export default {
   deleteUser,
   getUserMailboxes,
   assignMailbox,
-  unassignMailbox
+  unassignMailbox,
+  getAnnouncement,
+  saveAnnouncement
 };

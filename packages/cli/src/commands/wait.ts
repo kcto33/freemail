@@ -1,71 +1,38 @@
-import { createClient, type FreemailClient } from '../api.js';
-import { printJson, printLine } from '../output.js';
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function asMessageId(row: Record<string, unknown>): string {
-  return String(row.id ?? '');
-}
+import { type FreemailClient } from '../api.js';
+import { emailWaitAction, waitForMessage as groupedWaitForMessage } from './email.js';
 
 export async function waitForMessage(
-  client: Pick<FreemailClient, 'listEmails'> = createClient(),
+  client: Pick<FreemailClient, 'listEmails' | 'getMessage'>,
   mailbox: string,
   options: {
     timeoutSeconds: number;
     intervalSeconds: number;
+    from?: string;
+    subject?: string;
+    contains?: string;
     sleep?: (ms: number) => Promise<void>;
   },
 ): Promise<Record<string, unknown> | null> {
-  const wait = options.sleep ?? sleep;
-  const baseline = await client.listEmails(mailbox, 20);
-  const seen = new Set(baseline.map(asMessageId));
-  const deadline = Date.now() + options.timeoutSeconds * 1000;
-
-  while (Date.now() < deadline) {
-    await wait(options.intervalSeconds * 1000);
-    const rows = await client.listEmails(mailbox, 20);
-    const fresh = rows.find((row) => !seen.has(asMessageId(row)));
-    if (fresh) {
-      return fresh;
-    }
-
-    for (const row of rows) {
-      seen.add(asMessageId(row));
-    }
-  }
-
-  return null;
+  return groupedWaitForMessage(client, {
+    mailbox,
+    timeoutSeconds: options.timeoutSeconds,
+    intervalSeconds: options.intervalSeconds,
+    from: options.from,
+    subject: options.subject,
+    contains: options.contains,
+    sleep: options.sleep,
+  });
 }
 
 export async function waitAction(options: {
   mailbox: string;
   timeoutSeconds: number;
   intervalSeconds: number;
-  client?: Pick<FreemailClient, 'listEmails'>;
+  from?: string;
+  subject?: string;
+  contains?: string;
+  client?: Pick<FreemailClient, 'listEmails' | 'getMessage'>;
   json?: boolean;
 }): Promise<void> {
-  const message = await waitForMessage(options.client ?? createClient(), options.mailbox, {
-    timeoutSeconds: options.timeoutSeconds,
-    intervalSeconds: options.intervalSeconds,
-  });
-
-  if (!message) {
-    if (options.json) {
-      printJson({ timeout: true, mailbox: options.mailbox });
-      return;
-    }
-
-    printLine(`No new message arrived for ${options.mailbox} before timeout`);
-    return;
-  }
-
-  if (options.json) {
-    printJson(message);
-    return;
-  }
-
-  const subject = typeof message.subject === 'string' ? message.subject : String(message.subject ?? '');
-  printLine(`${String(message.id ?? '')} ${subject}`.trim());
+  await emailWaitAction(options);
 }

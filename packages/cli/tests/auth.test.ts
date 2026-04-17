@@ -98,7 +98,10 @@ test('package metadata declares a buildable dist-based CLI entrypoint', async ()
 
   assert.equal(packageJson.bin?.freemail, 'dist/index.js');
   assert.equal(packageJson.scripts?.build, 'tsc -p tsconfig.json');
-  assert.equal(packageJson.scripts?.test, 'tsx --test tests/auth.test.ts');
+  assert.equal(
+    packageJson.scripts?.test,
+    'tsx --test tests/auth.test.ts tests/mail-commands.test.ts tests/create-command.test.ts tests/code-commands.test.ts tests/doctor.test.ts',
+  );
   assert.equal(tsconfig.compilerOptions?.noEmit, false);
   assert.equal(tsconfig.compilerOptions?.outDir, 'dist');
   assert.equal(tsconfig.compilerOptions?.rootDir, 'src');

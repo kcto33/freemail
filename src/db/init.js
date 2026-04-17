@@ -40,19 +40,25 @@ export async function initDatabase(db) {
  */
 async function performFirstTimeSetup(db) {
   // 快速检查：如果所有必要表存在，执行字段迁移后返回
+  let hasAllBaseTables = false;
   try {
     await db.prepare('SELECT 1 FROM mailboxes LIMIT 1').all();
     await db.prepare('SELECT 1 FROM messages LIMIT 1').all();
     await db.prepare('SELECT 1 FROM users LIMIT 1').all();
     await db.prepare('SELECT 1 FROM user_mailboxes LIMIT 1').all();
     await db.prepare('SELECT 1 FROM sent_emails LIMIT 1').all();
-    // 所有5个必要表都存在，执行字段迁移
-    await migrateMailboxesFields(db);
-    await createCliAuthTables(db);
-    return;
+    hasAllBaseTables = true;
   } catch (e) {
     // 有表不存在，继续初始化
     console.log('检测到数据库表不完整，开始初始化...');
+  }
+
+  if (hasAllBaseTables) {
+    // 所有5个必要表都存在，执行字段迁移
+    await migrateMailboxesFields(db);
+    await migrateAnnouncementTable(db);
+    await createCliAuthTables(db);
+    return;
   }
   
   // 创建表结构（仅在表不存在时）- 包含新字段 forward_to 和 is_favorite
@@ -61,6 +67,7 @@ async function performFirstTimeSetup(db) {
   await db.exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, password_hash TEXT, role TEXT NOT NULL DEFAULT 'user', can_send INTEGER NOT NULL DEFAULT 0, mailbox_limit INTEGER NOT NULL DEFAULT 10, created_at TEXT DEFAULT CURRENT_TIMESTAMP);");
   await db.exec("CREATE TABLE IF NOT EXISTS user_mailboxes (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, mailbox_id INTEGER NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, is_pinned INTEGER NOT NULL DEFAULT 0, UNIQUE(user_id, mailbox_id), FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY(mailbox_id) REFERENCES mailboxes(id) ON DELETE CASCADE);");
   await db.exec("CREATE TABLE IF NOT EXISTS sent_emails (id INTEGER PRIMARY KEY AUTOINCREMENT, resend_id TEXT, from_name TEXT, from_addr TEXT NOT NULL, to_addrs TEXT NOT NULL, subject TEXT NOT NULL, html_content TEXT, text_content TEXT, status TEXT DEFAULT 'queued', scheduled_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP);");
+  await db.exec("CREATE TABLE IF NOT EXISTS site_announcements (id INTEGER PRIMARY KEY CHECK (id = 1), content TEXT NOT NULL DEFAULT '', is_active INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_by_user_id INTEGER);");
   
   // 创建索引
   await createIndexes(db);
@@ -117,6 +124,20 @@ async function migrateMailboxesFields(db) {
   } catch (error) {
     console.error('mailboxes 字段迁移失败:', error);
     // 不抛出异常，允许继续运行
+  }
+}
+
+/**
+ * 迁移 site_announcements 表（向后兼容）
+ * @param {object} db - 数据库连接对象
+ * @returns {Promise<void>}
+ */
+async function migrateAnnouncementTable(db) {
+  try {
+    await db.exec("CREATE TABLE IF NOT EXISTS site_announcements (id INTEGER PRIMARY KEY CHECK (id = 1), content TEXT NOT NULL DEFAULT '', is_active INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_by_user_id INTEGER);");
+  } catch (error) {
+    console.error('site_announcements 表迁移失败:', error);
+    throw error;
   }
 }
 
@@ -203,6 +224,16 @@ export async function setupDatabase(db) {
       scheduled_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS site_announcements (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      content TEXT NOT NULL DEFAULT '',
+      is_active INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_by_user_id INTEGER
     );
   `);
   

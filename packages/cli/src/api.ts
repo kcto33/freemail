@@ -35,6 +35,7 @@ export interface FreemailClient {
   listMailboxes(): Promise<{ list: Array<Record<string, unknown>>; total: number }>;
   listEmails(mailbox: string, limit?: number): Promise<Array<Record<string, unknown>>>;
   getMessage(id: number): Promise<Record<string, unknown>>;
+  downloadMessage(id: number): Promise<Response>;
 }
 
 export interface CreateClientOptions {
@@ -56,6 +57,25 @@ export function createClient(options: CreateClientOptions = {}): FreemailClient 
     }, fetchImpl);
   }
 
+  async function authedResponse(path: string, init: RequestInit = {}): Promise<Response> {
+    const config = await loadConfig({ configDir: options.configDir });
+    const response = await fetchImpl(new URL(path, config.baseUrl).toString(), {
+      ...init,
+      headers: {
+        Accept: '*/*',
+        Authorization: `Bearer ${config.accessToken}`,
+        ...(init.headers ?? {}),
+      },
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || `HTTP ${response.status}`);
+    }
+
+    return response;
+  }
+
   return {
     listMailboxes() {
       return authedJson<{ list: Array<Record<string, unknown>>; total: number }>('/api/mailboxes');
@@ -70,6 +90,9 @@ export function createClient(options: CreateClientOptions = {}): FreemailClient 
     },
     getMessage(id: number) {
       return authedJson<Record<string, unknown>>(`/api/email/${id}`);
+    },
+    downloadMessage(id: number) {
+      return authedResponse(`/api/email/${id}/download`);
     },
   };
 }

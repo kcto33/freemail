@@ -14,6 +14,11 @@ export {
 } from './cliAuth.js';
 export { getDatabaseWithValidation, getInitializedDatabase } from './connection.js';
 export {
+  getCurrentAnnouncement,
+  saveCurrentAnnouncement,
+  MAX_ANNOUNCEMENT_LENGTH,
+} from './announcements.js';
+export {
   getOrCreateMailboxId,
   getMailboxIdByAddress,
   checkMailboxOwnership,

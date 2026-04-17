@@ -8,7 +8,8 @@ import { handleMailboxesApi } from './mailboxes.js';
 import { handleEmailsApi } from './emails.js';
 import { handleSendApi } from './send.js';
 import { handleCliAuthApi } from './cliAuth.js';
-import { getJwtPayload, errorResponse } from './helpers.js';
+import { getJwtPayload, isStrictAdmin, jsonResponse, errorResponse } from './helpers.js';
+import { getCurrentAnnouncement, saveCurrentAnnouncement } from '../db/index.js';
 
 /**
  * 处理所有 API 请求
@@ -43,7 +44,14 @@ export async function handleApiRequest(request, db, mailDomains, options = {
     const mailboxId = payload?.mailboxId;
     
     // 允许的API端点
-    const allowedPaths = ['/api/emails', '/api/email/', '/api/auth', '/api/quota', '/api/mailbox/password'];
+    const allowedPaths = [
+      '/api/announcement',
+      '/api/emails',
+      '/api/email/',
+      '/api/auth',
+      '/api/quota',
+      '/api/mailbox/password'
+    ];
     const isAllowedPath = allowedPaths.some(allowedPath => path.startsWith(allowedPath));
     
     if (!isAllowedPath) {
@@ -77,6 +85,60 @@ export async function handleApiRequest(request, db, mailDomains, options = {
         } catch (e) {
           return errorResponse('验证失败', 500);
         }
+      }
+    }
+  }
+
+  if (path === '/api/announcement') {
+    if (request.method === 'GET') {
+      const payload = getJwtPayload(request, options);
+      if (!payload) {
+        return errorResponse('Unauthorized', 401);
+      }
+
+      if (payload.role === 'guest') {
+        return jsonResponse({
+          active: false,
+          content: '',
+          updated_at: null,
+          updated_by_user_id: null
+        });
+      }
+
+      try {
+        const announcement = await getCurrentAnnouncement(db);
+        return jsonResponse(announcement);
+      } catch (e) {
+        return errorResponse('查询公告失败', 500);
+      }
+    }
+
+    if (request.method === 'PUT') {
+      if (!isStrictAdmin(request, options)) {
+        return errorResponse('Forbidden', 403);
+      }
+
+      let body;
+      try {
+        body = await request.json();
+      } catch (e) {
+        return errorResponse('Malformed JSON', 400);
+      }
+
+      try {
+        const payload = getJwtPayload(request, options);
+        const announcement = await saveCurrentAnnouncement(db, {
+          content: body?.content,
+          isActive: body?.is_active,
+          updatedByUserId: payload?.userId || null
+        });
+        return jsonResponse(announcement);
+      } catch (e) {
+        const message = String(e?.message || e || '保存公告失败');
+        if (message.includes('公告内容不能超过') || message.includes('启用公告时内容不能为空')) {
+          return errorResponse(message, 400);
+        }
+        return errorResponse('保存公告失败', 500);
       }
     }
   }

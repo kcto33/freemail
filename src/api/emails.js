@@ -6,8 +6,46 @@
 import { getJwtPayload, errorResponse } from './helpers.js';
 import { buildMockEmails, buildMockEmailDetail } from './mock.js';
 import { extractEmail } from '../utils/common.js';
-import { getMailboxIdByAddress } from '../db/index.js';
+import { getMailboxIdByAddress, checkMailboxOwnership } from '../db/index.js';
 import { parseEmailBody } from '../email/parser.js';
+
+function getScopedUserId(request, options) {
+  const payload = getJwtPayload(request, options);
+  if (String(payload?.role || '') !== 'user') return 0;
+  const userId = Number(payload?.userId || 0);
+  return Number.isFinite(userId) && userId > 0 ? userId : 0;
+}
+
+async function ensureUserOwnsMailbox(db, userId, mailbox) {
+  if (!userId) return { exists: true, owned: true, mailboxId: null };
+
+  const ownership = await checkMailboxOwnership(db, mailbox, userId);
+  return {
+    exists: Boolean(ownership.exists),
+    owned: Boolean(ownership.ownedByUser),
+    mailboxId: ownership.mailboxId ?? null,
+  };
+}
+
+async function ensureUserOwnsMessage(db, userId, emailId) {
+  if (!userId) return { exists: true, owned: true, mailboxId: null };
+
+  const row = await db.prepare('SELECT mailbox_id FROM messages WHERE id = ? LIMIT 1')
+    .bind(emailId).first();
+  if (!row) {
+    return { exists: false, owned: false, mailboxId: null };
+  }
+
+  const ownership = await db.prepare('SELECT id FROM user_mailboxes WHERE user_id = ? AND mailbox_id = ? LIMIT 1')
+    .bind(userId, Number(row.mailbox_id || 0))
+    .first();
+
+  return {
+    exists: true,
+    owned: Boolean(ownership),
+    mailboxId: Number(row.mailbox_id || 0),
+  };
+}
 
 /**
  * 处理邮件相关 API
@@ -22,6 +60,7 @@ export async function handleEmailsApi(request, db, url, path, options) {
   const isMock = !!options.mockOnly;
   const isMailboxOnly = !!options.mailboxOnly;
   const r2 = options.r2;
+  const scopedUserId = getScopedUserId(request, options);
 
   // 获取邮件列表
   if (path === '/api/emails' && request.method === 'GET') {
@@ -34,6 +73,12 @@ export async function handleEmailsApi(request, db, url, path, options) {
         return Response.json(buildMockEmails(6));
       }
       const normalized = extractEmail(mailbox).trim().toLowerCase();
+      if (scopedUserId) {
+        const ownership = await ensureUserOwnsMailbox(db, scopedUserId, normalized);
+        if (ownership.exists && !ownership.owned) {
+          return errorResponse('只能访问自己的邮箱', 403);
+        }
+      }
       const mailboxId = await getMailboxIdByAddress(db, normalized);
       if (!mailboxId) return Response.json([]);
       
@@ -92,6 +137,15 @@ export async function handleEmailsApi(request, db, url, path, options) {
         const arr = ids.map(id => buildMockEmailDetail(id));
         return Response.json(arr);
       }
+
+      if (scopedUserId) {
+        for (const id of ids) {
+          const ownership = await ensureUserOwnsMessage(db, scopedUserId, id);
+          if (ownership.exists && !ownership.owned) {
+            return errorResponse('无权访问此邮件', 403);
+          }
+        }
+      }
       
       let timeFilter = '';
       let timeParam = [];
@@ -129,6 +183,12 @@ export async function handleEmailsApi(request, db, url, path, options) {
     }
     try {
       const normalized = extractEmail(mailbox).trim().toLowerCase();
+      if (scopedUserId) {
+        const ownership = await ensureUserOwnsMailbox(db, scopedUserId, normalized);
+        if (ownership.exists && !ownership.owned) {
+          return errorResponse('只能访问自己的邮箱', 403);
+        }
+      }
       const mailboxId = await getMailboxIdByAddress(db, normalized);
       if (!mailboxId) {
         return Response.json({ success: true, deletedCount: 0 });
@@ -164,6 +224,12 @@ export async function handleEmailsApi(request, db, url, path, options) {
   if (request.method === 'GET' && path.startsWith('/api/email/') && path.endsWith('/download')) {
     if (options.mockOnly) return errorResponse('演示模式不可下载', 403);
     const id = path.split('/')[3];
+    if (scopedUserId) {
+      const ownership = await ensureUserOwnsMessage(db, scopedUserId, id);
+      if (ownership.exists && !ownership.owned) {
+        return errorResponse('无权访问此邮件', 403);
+      }
+    }
     const { results } = await db.prepare('SELECT r2_bucket, r2_object_key FROM messages WHERE id = ?').bind(id).all();
     const row = (results || [])[0];
     if (!row || !row.r2_object_key) return errorResponse('未找到对象', 404);
@@ -186,6 +252,13 @@ export async function handleEmailsApi(request, db, url, path, options) {
       return Response.json(buildMockEmailDetail(emailId));
     }
     try {
+      if (scopedUserId) {
+        const ownership = await ensureUserOwnsMessage(db, scopedUserId, emailId);
+        if (ownership.exists && !ownership.owned) {
+          return errorResponse('无权访问此邮件', 403);
+        }
+      }
+
       let timeFilter = '';
       let timeParam = [];
       if (isMailboxOnly) {
@@ -255,6 +328,13 @@ export async function handleEmailsApi(request, db, url, path, options) {
     }
 
     try {
+      if (scopedUserId) {
+        const ownership = await ensureUserOwnsMessage(db, scopedUserId, emailId);
+        if (ownership.exists && !ownership.owned) {
+          return errorResponse('无权访问此邮件', 403);
+        }
+      }
+
       // 先查 r2_object_key，删除前取出以便同步清理 R2
       const row = await db.prepare(`SELECT r2_object_key FROM messages WHERE id = ?`).bind(emailId).first();
       const result = await db.prepare(`DELETE FROM messages WHERE id = ?`).bind(emailId).run();

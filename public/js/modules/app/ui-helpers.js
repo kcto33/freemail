@@ -64,6 +64,15 @@ export function escapeHtml(str) {
 }
 
 /**
+ * 安全格式化多行纯文本为 HTML
+ * @param {string} str - 原始字符串
+ * @returns {string}
+ */
+export function formatPlainTextMultiline(str) {
+  return escapeHtml(str).replace(/\r\n|\r|\n/g, '<br>');
+}
+
+/**
  * HTML 属性转义
  * @param {string} str - 原始字符串
  * @returns {string}
@@ -237,6 +246,7 @@ export default {
   formatTs,
   formatTsMobile,
   escapeHtml,
+  formatPlainTextMultiline,
   escapeAttr,
   setButtonLoading,
   restoreButton,
