@@ -53,6 +53,85 @@ curl "https://your.domain/api/session?admin_token=<JWT_TOKEN>"
 
 **安全提示：** 严格保密 `JWT_TOKEN`，并定期更换。
 
+### CLI 认证接口
+
+CLI 使用一组独立的认证接口完成浏览器辅助登录和会话管理。
+
+### POST /api/cli/auth/start
+创建 CLI 授权会话，返回 `state` 和授权页地址。
+
+**返回：**
+```json
+{
+  "state": "state-123",
+  "auth_url": "/cli-auth?state=state-123"
+}
+```
+
+### POST /api/cli/auth/issue-code
+在浏览器用户已登录时，为指定 `state` 生成一次性授权码。
+
+**请求参数：**
+```json
+{
+  "state": "state-123"
+}
+```
+
+**返回：**
+```json
+{
+  "state": "state-123",
+  "code": "ABCD1234",
+  "expires_at": "2099-01-01T00:00:00.000Z"
+}
+```
+
+### POST /api/cli/auth/exchange
+使用 `state + code` 交换为 CLI bearer token。
+
+**请求参数：**
+```json
+{
+  "state": "state-123",
+  "code": "ABCD1234"
+}
+```
+
+**返回：**
+```json
+{
+  "access_token": "cli-token",
+  "token_type": "Bearer",
+  "expires_at": "2099-01-01T00:00:00.000Z",
+  "username": "alice",
+  "role": "user",
+  "mailbox_address": "alice@example.com"
+}
+```
+
+### GET /api/cli/session
+检查当前 CLI bearer token 对应的登录主体。
+
+**返回：**
+```json
+{
+  "authenticated": true,
+  "username": "alice",
+  "role": "user",
+  "expires_at": "2099-01-01T00:00:00.000Z",
+  "mailbox_address": "alice@example.com"
+}
+```
+
+### POST /api/cli/logout
+吊销当前 CLI bearer token。
+
+**返回：**
+```json
+{ "success": true }
+```
+
 ### 用户角色
 
 | 角色 | 说明 |

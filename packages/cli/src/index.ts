@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { loginAction, logoutAction, statusAction } from './commands/auth.js';
+import { createAction } from './commands/create.js';
 import { listAction } from './commands/list.js';
 import { readAction } from './commands/read.js';
 import { waitAction } from './commands/wait.js';
@@ -22,6 +23,18 @@ function getOption(argv: string[], name: string): string | undefined {
 
 async function main(argv = process.argv.slice(2)): Promise<void> {
   const [group, command] = argv;
+
+  if (group === 'create') {
+    const lengthValue = getOption(argv, 'length');
+    const domainIndexValue = getOption(argv, 'domain-index');
+
+    await createAction({
+      length: lengthValue === undefined ? undefined : Number(lengthValue),
+      domainIndex: domainIndexValue === undefined ? undefined : Number(domainIndexValue),
+      json: argv.includes('--json'),
+    });
+    return;
+  }
 
   if (group === 'list') {
     await listAction({
@@ -62,7 +75,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
   }
 
   if (group !== 'auth') {
-    throw new Error('用法: freemail <auth|list|read|wait>');
+    throw new Error('用法: freemail <auth|create|list|read|wait>');
   }
 
   if (command === 'login') {

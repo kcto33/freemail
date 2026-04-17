@@ -8,7 +8,7 @@
 
 `本邮箱服务支持接收邮件时自动创建对应的邮箱，便于api用户使用，减少worker调用，邮箱服务的转发目标邮箱地址需要在cloudflare Email Addresses中验证`
 
-📖 **[一键部署指南](docs/yijianbushu.md)** | 🤖 **[Github Action 部署指南](docs/action-deployment.md)** | 📬 **[Resend 发件配置](docs/resend.md)** | 📚 **[API 文档](docs/api.md)**
+📖 **[一键部署指南](docs/yijianbushu.md)** | 🤖 **[Github Action 部署指南](docs/action-deployment.md)** | 💻 **[CLI 用法](packages/cli/README.md)** | 📬 **[Resend 发件配置](docs/resend.md)** | 📚 **[API 文档](docs/api.md)**
 
 ## 📸 项目展示
 ### 体验地址： https://mailexhibit.dinging.top/
