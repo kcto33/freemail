@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 import { loginAction, logoutAction, statusAction } from './commands/auth.js';
+import { listAction } from './commands/list.js';
+import { readAction } from './commands/read.js';
+import { waitAction } from './commands/wait.js';
 import { printError } from './output.js';
 
 function getOption(argv: string[], name: string): string | undefined {
@@ -20,8 +23,46 @@ function getOption(argv: string[], name: string): string | undefined {
 async function main(argv = process.argv.slice(2)): Promise<void> {
   const [group, command] = argv;
 
+  if (group === 'list') {
+    await listAction({
+      json: argv.includes('--json'),
+    });
+    return;
+  }
+
+  if (group === 'read') {
+    const idValue = getOption(argv, 'id') ?? argv[1];
+    if (!idValue) {
+      throw new Error('读取邮件需要提供 --id');
+    }
+
+    await readAction({
+      id: Number(idValue),
+      json: argv.includes('--json'),
+    });
+    return;
+  }
+
+  if (group === 'wait') {
+    const mailbox = getOption(argv, 'mailbox') ?? argv[1];
+    if (!mailbox) {
+      throw new Error('等待邮件需要提供 --mailbox');
+    }
+
+    const timeoutSeconds = Number(getOption(argv, 'timeout') ?? '120');
+    const intervalSeconds = Number(getOption(argv, 'interval') ?? '3');
+
+    await waitAction({
+      mailbox,
+      timeoutSeconds,
+      intervalSeconds,
+      json: argv.includes('--json'),
+    });
+    return;
+  }
+
   if (group !== 'auth') {
-    throw new Error('用法: freemail auth <login|status|logout>');
+    throw new Error('用法: freemail <auth|list|read|wait>');
   }
 
   if (command === 'login') {

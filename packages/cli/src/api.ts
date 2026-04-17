@@ -1,3 +1,5 @@
+import { loadConfig } from './config.js';
+
 export interface CliSessionResponse {
   access_token: string;
   token_type: 'Bearer';
@@ -27,4 +29,47 @@ export async function requestJson<T>(
   }
 
   return response.json() as Promise<T>;
+}
+
+export interface FreemailClient {
+  listMailboxes(): Promise<{ list: Array<Record<string, unknown>>; total: number }>;
+  listEmails(mailbox: string, limit?: number): Promise<Array<Record<string, unknown>>>;
+  getMessage(id: number): Promise<Record<string, unknown>>;
+}
+
+export interface CreateClientOptions {
+  configDir?: string;
+  fetchImpl?: typeof fetch;
+}
+
+export function createClient(options: CreateClientOptions = {}): FreemailClient {
+  const fetchImpl = options.fetchImpl ?? fetch;
+
+  async function authedJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const config = await loadConfig({ configDir: options.configDir });
+    return requestJson<T>(new URL(path, config.baseUrl).toString(), {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${config.accessToken}`,
+        ...(init.headers ?? {}),
+      },
+    }, fetchImpl);
+  }
+
+  return {
+    listMailboxes() {
+      return authedJson<{ list: Array<Record<string, unknown>>; total: number }>('/api/mailboxes');
+    },
+    listEmails(mailbox: string, limit = 20) {
+      const query = new URLSearchParams({
+        mailbox,
+        limit: String(limit),
+      });
+
+      return authedJson<Array<Record<string, unknown>>>(`/api/emails?${query.toString()}`);
+    },
+    getMessage(id: number) {
+      return authedJson<Record<string, unknown>>(`/api/email/${id}`);
+    },
+  };
 }
