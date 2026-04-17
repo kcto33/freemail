@@ -1,0 +1,14 @@
+{
+  "name": "@freemail/cli",
+  "version": "0.1.0",
+  "description": "Agent-friendly CLI for Freemail",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "freemail": "dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "test": "tsx --test tests/auth.test.ts"
+  }
+}
