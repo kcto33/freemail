@@ -47,8 +47,8 @@ async function fetchOne(db, sql, values) {
  * @returns {Promise<void>}
  */
 export async function createCliAuthTables(db) {
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS cli_auth_states (
+  const statements = [
+    `CREATE TABLE IF NOT EXISTS cli_auth_states (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       state_hash TEXT NOT NULL UNIQUE,
       user_id INTEGER NOT NULL,
@@ -58,9 +58,8 @@ export async function createCliAuthTables(db) {
       code_created_at TEXT,
       code_expires_at TEXT,
       code_used_at TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS cli_auth_codes (
+    )`,
+    `CREATE TABLE IF NOT EXISTS cli_auth_codes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       code_hash TEXT NOT NULL UNIQUE,
       state_hash TEXT NOT NULL UNIQUE,
@@ -69,24 +68,26 @@ export async function createCliAuthTables(db) {
       expires_at TEXT NOT NULL,
       consumed_at TEXT,
       token_hash TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS cli_tokens (
+    )`,
+    `CREATE TABLE IF NOT EXISTS cli_tokens (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       token_hash TEXT NOT NULL UNIQUE,
       user_id INTEGER NOT NULL,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       expires_at TEXT NOT NULL,
       revoked_at TEXT
-    );
+    )`,
+    'CREATE INDEX IF NOT EXISTS idx_cli_auth_states_user_id ON cli_auth_states(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_cli_auth_states_expires_at ON cli_auth_states(expires_at)',
+    'CREATE INDEX IF NOT EXISTS idx_cli_auth_codes_state_hash ON cli_auth_codes(state_hash)',
+    'CREATE INDEX IF NOT EXISTS idx_cli_auth_codes_code_hash ON cli_auth_codes(code_hash)',
+    'CREATE INDEX IF NOT EXISTS idx_cli_tokens_user_id ON cli_tokens(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_cli_tokens_token_hash ON cli_tokens(token_hash)',
+  ];
 
-    CREATE INDEX IF NOT EXISTS idx_cli_auth_states_user_id ON cli_auth_states(user_id);
-    CREATE INDEX IF NOT EXISTS idx_cli_auth_states_expires_at ON cli_auth_states(expires_at);
-    CREATE INDEX IF NOT EXISTS idx_cli_auth_codes_state_hash ON cli_auth_codes(state_hash);
-    CREATE INDEX IF NOT EXISTS idx_cli_auth_codes_code_hash ON cli_auth_codes(code_hash);
-    CREATE INDEX IF NOT EXISTS idx_cli_tokens_user_id ON cli_tokens(user_id);
-    CREATE INDEX IF NOT EXISTS idx_cli_tokens_token_hash ON cli_tokens(token_hash);
-  `);
+  for (const statement of statements) {
+    await db.exec(`${statement};`);
+  }
 }
 
 /**
