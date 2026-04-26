@@ -10,6 +10,7 @@ import { getStoredLength, saveLength, getSelectedDomainIndex } from './domains.j
 import { startAutoRefresh, stopAutoRefresh } from './auto-refresh.js';
 import { resetPager } from './email-list.js';
 import { resetMbPage } from './mailbox-list.js';
+import { copyToClipboard } from '../../core/utils.js';
 
 /**
  * 生成随机邮箱
@@ -273,7 +274,8 @@ export async function copyMailboxAddress(showToast) {
     return;
   }
   try {
-    await navigator.clipboard.writeText(mailbox);
+    const copied = await copyToClipboard(mailbox);
+    if (!copied) throw new Error('copy failed');
     showToast(`已复制：${mailbox}`, 'success');
   } catch(_) {
     showToast('复制失败', 'error');

@@ -94,11 +94,14 @@ export function escapeAttr(str) {
  * @returns {Promise<boolean>}
  */
 export async function copyToClipboard(text) {
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
       await navigator.clipboard.writeText(text);
       return true;
-    }
+    } catch (_) {}
+  }
+
+  try {
     // 降级方案
     const textarea = document.createElement('textarea');
     textarea.value = text;

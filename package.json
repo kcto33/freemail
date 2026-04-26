@@ -1,7 +1,8 @@
 {
   "scripts": {
-    "test": "npm run test:worker",
-    "test:worker": "tsx --test tests/worker/auth-session.test.js tests/worker/cli-auth-db.test.js tests/worker/cli-auth-http.test.js tests/worker/asset-manager-cli-auth.test.js tests/worker/email-ownership.test.js tests/worker/announcement-api.test.js"
+    "test": "npm run test:worker && npm run test:public",
+    "test:worker": "tsx --test tests/worker/auth-session.test.js tests/worker/cli-auth-db.test.js tests/worker/cli-auth-http.test.js tests/worker/asset-manager-cli-auth.test.js tests/worker/email-ownership.test.js tests/worker/announcement-api.test.js",
+    "test:public": "tsx --test tests/public/copy-mailbox.test.js"
   },
   "dependencies": {
     "postal-mime": "^2.7.4"
